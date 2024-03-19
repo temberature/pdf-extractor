@@ -151,15 +151,9 @@ def extract():
         
         return jsonify({"text": file_content})
 
-    except openai.error.InvalidRequestError as e:
-        app.logger.error(f"InvalidRequestError: {str(e)}")
-        return jsonify({"error": "Invalid request. The file might be corrupted or in an unsupported format."}), 400
-    except openai.error.InternalServerError as e:
-        app.logger.error(f"InternalServerError: {str(e)}")
-        return jsonify({"error": "Server error. The file extraction service is currently unavailable."}), 500
     except Exception as e:
-        app.logger.error(f"Unexpected error: {str(e)}")
-        return jsonify({"error": "Unknown error occurred during file extraction."}), 500
+        app.logger.error(f"Error during file extraction: {str(e)}")
+        return jsonify({"error": str(e)}), 500
     
     finally:
         # 删除临时文件

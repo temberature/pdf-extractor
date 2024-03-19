@@ -306,6 +306,13 @@
                             $('#result').text(response.text);
                             listFiles();
                         }
+                    },
+                    error: function (xhr) {
+                        var errorMessage = '上传文件时出错';
+                        if (xhr.responseJSON && xhr.responseJSON.error) {
+                            errorMessage += ': ' + xhr.responseJSON.error;
+                        }
+                        $('#result').text(errorMessage);
                     }
                 });
             });
