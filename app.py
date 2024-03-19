@@ -3,6 +3,7 @@ from pathlib import Path
 from openai import OpenAI
 import time
 import os
+import tempfile
 
 app = Flask(__name__)
 
@@ -23,8 +24,13 @@ def extract():
     pdf_file = request.files['pdf_file']
     
     try:
-        # 上传PDF文件
-        file_object = client.files.create(file=pdf_file, purpose="file-extract")
+        # 将FileStorage对象转换为临时文件对象
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            pdf_file.save(tmp_file.name)
+            tmp_file.flush()
+
+            # 上传PDF文件
+            file_object = client.files.create(file=open(tmp_file.name, "rb"), purpose="file-extract")
 
         # 等待文件处理完成
         while file_object.status != 'ok':         
@@ -40,6 +46,10 @@ def extract():
 
     except Exception as e:
         return jsonify({"error": str(e)})
+    
+    finally:
+        # 删除临时文件
+        os.unlink(tmp_file.name)
 
 if __name__ == '__main__':
     app.run()
