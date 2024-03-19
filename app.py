@@ -37,6 +37,58 @@ dictConfig({
 def index():
     return render_template('index.html')
 
+@app.route('/files', methods=['GET'])
+def list_files():
+    try:
+        file_list = client.files.list()
+        
+        # 将 FileObject 转换为字典
+        files_data = []
+        for file in file_list.data:
+            file_data = {
+                'id': file.id,
+                'filename': file.filename,
+                'bytes': file.bytes,
+                'created_at': file.created_at,
+                'status': file.status,
+                'status_details': file.status_details
+            }
+            files_data.append(file_data)
+        
+        return jsonify({"files": files_data})
+    except Exception as e:
+        app.logger.error(f"Error listing files: {str(e)}")
+        return jsonify({"error": "Error listing files"}), 500
+
+@app.route('/files/<string:file_id>', methods=['GET'])
+def get_file(file_id):
+    try:
+        file = client.files.retrieve(file_id=file_id)
+        
+        # 将 FileObject 转换为字典
+        file_data = {
+            'id': file.id,
+            'filename': file.filename,
+            'bytes': file.bytes,
+            'created_at': file.created_at,
+            'status': file.status,
+            'status_details': file.status_details
+        }
+        
+        return jsonify(file_data)
+    except Exception as e:
+        app.logger.error(f"Error retrieving file info: {str(e)}")
+        return jsonify({"error": "Error retrieving file info"}), 500
+
+@app.route('/files/<string:file_id>', methods=['DELETE'])
+def delete_file(file_id):
+    try:
+        client.files.delete(file_id=file_id)
+        return jsonify({"message": "File deleted successfully"})
+    except Exception as e:
+        app.logger.error(f"Error deleting file: {str(e)}")
+        return jsonify({"error": "Error deleting file"}), 500
+
 @app.route('/extract', methods=['POST'])
 def extract():
     # 获取上传的文件
@@ -46,8 +98,11 @@ def extract():
     app.logger.info(f"Received file: {pdf_file.filename}, size: {pdf_file.content_length} bytes")
     
     try:
-        # 将FileStorage对象转换为临时文件对象,并指定扩展名为".pdf"
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        # 从原始文件名中提取文件名和扩展名
+        file_name, file_ext = os.path.splitext(pdf_file.filename)
+        
+        # 将FileStorage对象转换为临时文件对象,使用原始文件名
+        with tempfile.NamedTemporaryFile(delete=False, prefix=file_name, suffix=file_ext) as tmp_file:
             pdf_file.save(tmp_file.name)
             tmp_file.flush()
 
@@ -86,5 +141,14 @@ def extract():
         # 删除临时文件
         os.unlink(tmp_file.name)
 
+@app.route('/files/<string:file_id>/content', methods=['GET'])
+def get_file_content(file_id):
+    try:
+        file_content = client.files.content(file_id=file_id).text
+        return jsonify({"content": file_content})
+    except Exception as e:
+        app.logger.error(f"Error retrieving file content: {str(e)}")
+        return jsonify({"error": "Error retrieving file content"}), 500
+        
 if __name__ == '__main__':
     app.run()

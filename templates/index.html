@@ -2,6 +2,14 @@
 <html>
 <head>
     <title>PDF文本抽取</title>
+    <style>
+        .file-list {
+            margin-top: 20px;
+        }
+        .file-item {
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
     <h1>PDF文本抽取</h1>
@@ -11,11 +19,85 @@
         <button type="submit">上传文件</button>
     </form>
     
+    <div class="file-list">
+        <h2>已上传的文件:</h2>
+        <ul id="fileList"></ul>
+    </div>
+    
     <div id="result"></div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(function() {
+            // 列出已上传的文件
+            function listFiles() {
+                $.get('/files', function(data) {
+                    var fileList = $('#fileList');
+                    fileList.empty();
+                    data.files.forEach(function(file) {
+                        var listItem = $('<li class="file-item"></li>');
+                        listItem.text(file.filename + ' (' + file.status + ')');
+                        listItem.data('file-id', file.id);  // 添加文件ID的data属性
+                        
+                        var deleteButton = $('<button>Delete</button>');
+                        deleteButton.on('click', function() {
+                            deleteFile(file.id);
+                        });
+                        
+                        var infoButton = $('<button>Info</button>');
+                        infoButton.on('click', function() {
+                            getFileInfo(file.id);
+                        });
+                        
+                        var contentButton = $('<button>Content</button>');  // 添加Content按钮
+                        contentButton.on('click', function() {
+                            getFileContent(file.id);
+                        });
+                        
+                        listItem.append(deleteButton, infoButton, contentButton);
+                        fileList.append(listItem);
+                    });
+                });
+            }
+            
+            // 删除文件
+            function deleteFile(fileId) {
+                $.ajax({
+                    url: '/files/' + fileId,
+                    type: 'DELETE',
+                    success: function(response) {
+                        $('#result').text('File deleted successfully');
+                        listFiles();
+                    },
+                    error: function(xhr) {
+                        $('#result').text('Error deleting file: ' + xhr.responseJSON.error);
+                    }
+                });
+            }
+            
+            // 获取文件信息
+            function getFileInfo(fileId) {
+                $.get('/files/' + fileId, function(data) {
+                    var infoText = 'File ID: ' + data.id + '\n' +
+                                   'Filename: ' + data.filename + '\n' +
+                                   'Size: ' + data.bytes + ' bytes\n' +
+                                   'Status: ' + data.status;
+                    $('#result').text(infoText);
+                });
+            }
+            
+            // 获取文件内容
+            function getFileContent(fileId) {
+                $.get('/files/' + fileId + '/content', function(data) {
+                    if (data.error) {
+                        $('#result').text('Error: ' + data.error);
+                    } else {
+                        $('#result').text(data.content);
+                    }
+                });
+            }
+            
+            // 上传文件
             $('#uploadForm').submit(function(e) {
                 e.preventDefault();
                 var formData = new FormData(this);
@@ -30,10 +112,14 @@
                             $('#result').text('Error: ' + response.error);
                         } else {
                             $('#result').text(response.text);
+                            listFiles();
                         }
                     }
                 });
             });
+            
+            // 初始化文件列表
+            listFiles();
         });
     </script>
 </body>
