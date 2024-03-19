@@ -14,6 +14,25 @@ client = OpenAI(
     base_url="https://api.moonshot.cn/v1",
 )
 
+from logging.config import dictConfig
+
+# 配置日志记录
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -27,8 +46,8 @@ def extract():
     app.logger.info(f"Received file: {pdf_file.filename}, size: {pdf_file.content_length} bytes")
     
     try:
-        # 将FileStorage对象转换为临时文件对象
-        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+        # 将FileStorage对象转换为临时文件对象,并指定扩展名为".pdf"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
             pdf_file.save(tmp_file.name)
             tmp_file.flush()
 
@@ -43,7 +62,7 @@ def extract():
             file_object = client.files.retrieve(file_id=file_object.id)
             if file_object.status_details == 'error':
                 app.logger.error(f"File processing failed: {file_object.status_details}")
-                return jsonify({"error": "文件处理失败"})
+                return jsonify({"error": "文件处理失败"}), 500
             time.sleep(1)  # 等待1秒更新进度
         
         # 获取文件内容
@@ -53,9 +72,15 @@ def extract():
         
         return jsonify({"text": file_content})
 
+    except openai.error.InvalidRequestError as e:
+        app.logger.error(f"InvalidRequestError: {str(e)}")
+        return jsonify({"error": "Invalid request. The file might be corrupted or in an unsupported format."}), 400
+    except openai.error.InternalServerError as e:
+        app.logger.error(f"InternalServerError: {str(e)}")
+        return jsonify({"error": "Server error. The file extraction service is currently unavailable."}), 500
     except Exception as e:
-        app.logger.exception("Exception during file extraction")
-        return jsonify({"error": str(e)})
+        app.logger.error(f"Unexpected error: {str(e)}")
+        return jsonify({"error": "Unknown error occurred during file extraction."}), 500
     
     finally:
         # 删除临时文件
