@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF文本抽取</title>
+</head>
+<body>
+    <h1>PDF文本抽取</h1>
+    
+    <form id="uploadForm">
+        <input type="file" name="pdf_file" accept=".pdf">
+        <button type="submit">上传文件</button>
+    </form>
+    
+    <div id="result"></div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(function() {
+            $('#uploadForm').submit(function(e) {
+                e.preventDefault();
+                var formData = new FormData(this);
+                $.ajax({
+                    url: '/extract',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        if (response.error) {
+                            $('#result').text('Error: ' + response.error);
+                        } else {
+                            $('#result').text(response.text);
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
