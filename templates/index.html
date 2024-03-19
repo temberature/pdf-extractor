@@ -200,6 +200,7 @@
                 var apiKey = $('#api_key').val();
                 localStorage.setItem('moonshot_api_key', apiKey);
                 alert('API密钥已保存');
+                location.reload();  // 重新加载页面
             });
 
             // 列出已上传的文件
