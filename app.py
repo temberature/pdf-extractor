@@ -23,11 +23,17 @@ def extract():
     # 获取上传的文件
     pdf_file = request.files['pdf_file']
     
+    # 记录文件名和大小
+    app.logger.info(f"Received file: {pdf_file.filename}, size: {pdf_file.content_length} bytes")
+    
     try:
         # 将FileStorage对象转换为临时文件对象
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             pdf_file.save(tmp_file.name)
             tmp_file.flush()
+
+            # 记录临时文件的路径
+            app.logger.info(f"Saved to temporary file: {tmp_file.name}")
 
             # 上传PDF文件
             file_object = client.files.create(file=open(tmp_file.name, "rb"), purpose="file-extract")
@@ -36,15 +42,19 @@ def extract():
         while file_object.status != 'ok':         
             file_object = client.files.retrieve(file_id=file_object.id)
             if file_object.status_details == 'error':
+                app.logger.error(f"File processing failed: {file_object.status_details}")
                 return jsonify({"error": "文件处理失败"})
             time.sleep(1)  # 等待1秒更新进度
         
         # 获取文件内容
         file_content = client.files.content(file_id=file_object.id).text
         
+        app.logger.info(f"File content extracted, length: {len(file_content)} characters")
+        
         return jsonify({"text": file_content})
 
     except Exception as e:
+        app.logger.exception("Exception during file extraction")
         return jsonify({"error": str(e)})
     
     finally:
