@@ -1,115 +1,306 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>PDF文本抽取</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .api-key-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .api-key-section label {
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .api-key-section input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .api-key-section button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .file-upload-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-upload-section input {
+            display: none;
+        }
+
+        .file-upload-section label {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
         .file-list {
             margin-top: 20px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        .file-item {
+
+        .file-list h2 {
+            margin-top: 0;
             margin-bottom: 10px;
+            color: #333;
+        }
+
+        #fileTable {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        #fileTable th,
+        #fileTable td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        #fileTable th {
+            background-color: #f7f7f7;
+            font-weight: bold;
+        }
+
+        .file-name {
+            display: flex;
+            align-items: center;
+        }
+
+        .file-name i {
+            margin-right: 5px;
+            color: #dc3545;
+        }
+
+        .btn {
+            padding: 5px 10px;
+            margin-right: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .delete-btn {
+            background-color: #dc3545;
+            color: #fff;
+        }
+
+        .info-btn {
+            background-color: #17a2b8;
+            color: #fff;
+        }
+
+        .content-btn {
+            background-color: #007bff;
+            color: #fff;
+        }
+
+        .file-content {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-content h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        #result {
+            white-space: pre-wrap;
+            font-family: monospace;
         }
     </style>
 </head>
+
 <body>
     <h1>PDF文本抽取</h1>
-    
-    <form id="uploadForm">
-        <input type="file" name="pdf_file" accept=".pdf">
-        <button type="submit">上传文件</button>
-    </form>
-    
+
+    <div class="api-key-section">
+        <label for="api_key">MOONSHOT_API_KEY:</label>
+        <input type="text" id="api_key" placeholder="请输入您的 MOONSHOT_API_KEY">
+        <button id="save_api_key">保存</button>
+    </div>
+
+    <div class="file-upload-section">
+        <form id="uploadForm">
+            <input type="file" name="pdf_file" id="pdf_file" accept=".pdf">
+            <label for="pdf_file"><i class="fas fa-cloud-upload-alt"></i> 选择PDF文件</label>
+            <span id="file_name"></span>
+            <button type="submit">上传文件</button>
+        </form>
+    </div>
+
     <div class="file-list">
         <h2>已上传的文件:</h2>
-        <ul id="fileList"></ul>
+        <table id="fileTable">
+            <thead>
+                <tr>
+                    <th>文件名</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="fileList"></tbody>
+        </table>
     </div>
-    
-    <div id="result"></div>
+
+    <div class="file-content">
+        <h2>文件内容:</h2>
+        <pre id="result"></pre>
+    </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        $(function() {
+        $(function () {
+            // 检查本地存储中是否有缓存的API密钥
+            var cachedApiKey = localStorage.getItem('moonshot_api_key');
+            if (cachedApiKey) {
+                $('#api_key').val(cachedApiKey);
+            }
+
+            // 保存API密钥
+            $('#save_api_key').on('click', function () {
+                var apiKey = $('#api_key').val();
+                localStorage.setItem('moonshot_api_key', apiKey);
+                alert('API密钥已保存');
+            });
+
             // 列出已上传的文件
             function listFiles() {
-                $.get('/files', function(data) {
+                var apiKey = localStorage.getItem('moonshot_api_key');
+                $.get('/files?api_key=' + apiKey, function (data) {
                     var fileList = $('#fileList');
                     fileList.empty();
-                    data.files.forEach(function(file) {
-                        var listItem = $('<li class="file-item"></li>');
-                        listItem.text(file.filename + ' (' + file.status + ')');
-                        listItem.data('file-id', file.id);  // 添加文件ID的data属性
-                        
-                        var deleteButton = $('<button>Delete</button>');
-                        deleteButton.on('click', function() {
+                    data.files.forEach(function (file) {
+                        var row = $('<tr></tr>');
+                        var fileNameCell = $('<td class="file-name"><i class="fas fa-file-pdf"></i> ' + file.filename + '</td>');
+                        var statusCell = $('<td>' + file.status + '</td>');
+                        var actionsCell = $('<td></td>');
+
+                        var deleteButton = $('<button class="btn delete-btn"><i class="fas fa-trash-alt"></i></button>');
+                        deleteButton.on('click', function () {
                             deleteFile(file.id);
                         });
-                        
-                        var infoButton = $('<button>Info</button>');
-                        infoButton.on('click', function() {
+
+                        var infoButton = $('<button class="btn info-btn"><i class="fas fa-info-circle"></i></button>');
+                        infoButton.on('click', function () {
                             getFileInfo(file.id);
                         });
-                        
-                        var contentButton = $('<button>Content</button>');  // 添加Content按钮
-                        contentButton.on('click', function() {
+
+                        var contentButton = $('<button class="btn content-btn"><i class="fas fa-file-alt"></i></button>');
+                        contentButton.on('click', function () {
                             getFileContent(file.id);
                         });
-                        
-                        listItem.append(deleteButton, infoButton, contentButton);
-                        fileList.append(listItem);
+
+                        actionsCell.append(deleteButton, infoButton, contentButton);
+                        row.append(fileNameCell, statusCell, actionsCell);
+                        fileList.append(row);
                     });
                 });
             }
-            
             // 删除文件
             function deleteFile(fileId) {
-                $.ajax({
-                    url: '/files/' + fileId,
-                    type: 'DELETE',
-                    success: function(response) {
-                        $('#result').text('File deleted successfully');
-                        listFiles();
-                    },
-                    error: function(xhr) {
-                        $('#result').text('Error deleting file: ' + xhr.responseJSON.error);
-                    }
-                });
+                if (confirm('确定要删除此文件吗?')) {
+                    var apiKey = localStorage.getItem('moonshot_api_key');
+                    $.ajax({
+                        url: '/files/' + fileId + '?api_key=' + apiKey,
+                        type: 'DELETE',
+                        success: function (response) {
+                            $('#result').text('文件已成功删除');
+                            listFiles();
+                        },
+                        error: function (xhr) {
+                            $('#result').text('删除文件时出错: ' + xhr.responseJSON.error);
+                        }
+                    });
+                }
             }
-            
+
             // 获取文件信息
             function getFileInfo(fileId) {
-                $.get('/files/' + fileId, function(data) {
-                    var infoText = 'File ID: ' + data.id + '\n' +
-                                   'Filename: ' + data.filename + '\n' +
-                                   'Size: ' + data.bytes + ' bytes\n' +
-                                   'Status: ' + data.status;
+                var apiKey = localStorage.getItem('moonshot_api_key');
+                $.get('/files/' + fileId + '?api_key=' + apiKey, function (data) {
+                    var infoText = '文件ID: ' + data.id + '\n' +
+                        '文件名: ' + data.filename + '\n' +
+                        '大小: ' + data.bytes + ' 字节\n' +
+                        '状态: ' + data.status;
                     $('#result').text(infoText);
                 });
             }
-            
+
             // 获取文件内容
             function getFileContent(fileId) {
-                $.get('/files/' + fileId + '/content', function(data) {
+                var apiKey = localStorage.getItem('moonshot_api_key');
+                $.get('/files/' + fileId + '/content?api_key=' + apiKey, function (data) {
                     if (data.error) {
-                        $('#result').text('Error: ' + data.error);
+                        $('#result').text('错误: ' + data.error);
                     } else {
                         $('#result').text(data.content);
                     }
                 });
             }
-            
+
+            // 当用户选择文件时显示文件名
+            $('#pdf_file').on('change', function (e) {
+                var fileName = e.target.files[0].name;
+                $('#file_name').text(fileName);
+            });
+
             // 上传文件
-            $('#uploadForm').submit(function(e) {
+            $('#uploadForm').submit(function (e) {
                 e.preventDefault();
                 var formData = new FormData(this);
+
+                // 从本地存储获取API密钥并添加到表单数据
+                var apiKey = localStorage.getItem('moonshot_api_key');
+                formData.append('api_key', apiKey);
+
                 $.ajax({
                     url: '/extract',
                     type: 'POST',
                     data: formData,
                     processData: false,
                     contentType: false,
-                    success: function(response) {
+                    success: function (response) {
                         if (response.error) {
-                            $('#result').text('Error: ' + response.error);
+                            $('#result').text('错误: ' + response.error);
                         } else {
                             $('#result').text(response.text);
                             listFiles();
@@ -117,10 +308,11 @@
                     }
                 });
             });
-            
+
             // 初始化文件列表
             listFiles();
         });
     </script>
 </body>
+
 </html>

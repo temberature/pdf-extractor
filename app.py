@@ -7,12 +7,12 @@ import tempfile
 
 app = Flask(__name__)
 
-# 从环境变量获取API密钥 
-api_key = os.environ.get('MOONSHOT_API_KEY')
-client = OpenAI(
-    api_key=api_key,
-    base_url="https://api.moonshot.cn/v1",
-)
+# # 从环境变量获取API密钥 
+# api_key = os.environ.get('MOONSHOT_API_KEY')
+# client = OpenAI(
+#     api_key=api_key,
+#     base_url="https://api.moonshot.cn/v1",
+# )
 
 from logging.config import dictConfig
 
@@ -39,6 +39,11 @@ def index():
 
 @app.route('/files', methods=['GET'])
 def list_files():
+    api_key = request.args.get('api_key')
+    client = OpenAI(
+        api_key=api_key,
+        base_url="https://api.moonshot.cn/v1",
+    )
     try:
         file_list = client.files.list()
         
@@ -62,6 +67,11 @@ def list_files():
 
 @app.route('/files/<string:file_id>', methods=['GET'])
 def get_file(file_id):
+    api_key = request.args.get('api_key')
+    client = OpenAI(
+        api_key=api_key,
+        base_url="https://api.moonshot.cn/v1",
+    )
     try:
         file = client.files.retrieve(file_id=file_id)
         
@@ -82,6 +92,11 @@ def get_file(file_id):
 
 @app.route('/files/<string:file_id>', methods=['DELETE'])
 def delete_file(file_id):
+    api_key = request.args.get('api_key')
+    client = OpenAI(
+        api_key=api_key,
+        base_url="https://api.moonshot.cn/v1",
+    )
     try:
         client.files.delete(file_id=file_id)
         return jsonify({"message": "File deleted successfully"})
@@ -91,8 +106,17 @@ def delete_file(file_id):
 
 @app.route('/extract', methods=['POST'])
 def extract():
-    # 获取上传的文件
+    # 获取上传的文件和API密钥
     pdf_file = request.files['pdf_file']
+    api_key = request.form['api_key']
+    
+    # 使用提供的API密钥初始化OpenAI客户端
+    client = OpenAI(
+        api_key=api_key,
+        base_url="https://api.moonshot.cn/v1",
+    )
+    
+    # ... 其余代码保持不变 ...
     
     # 记录文件名和大小
     app.logger.info(f"Received file: {pdf_file.filename}, size: {pdf_file.content_length} bytes")
@@ -143,12 +167,17 @@ def extract():
 
 @app.route('/files/<string:file_id>/content', methods=['GET'])
 def get_file_content(file_id):
+    api_key = request.args.get('api_key')
+    client = OpenAI(
+        api_key=api_key,
+        base_url="https://api.moonshot.cn/v1",
+    )
     try:
         file_content = client.files.content(file_id=file_id).text
         return jsonify({"content": file_content})
     except Exception as e:
         app.logger.error(f"Error retrieving file content: {str(e)}")
         return jsonify({"error": "Error retrieving file content"}), 500
-        
+
 if __name__ == '__main__':
     app.run()
